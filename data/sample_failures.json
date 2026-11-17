@@ -1,0 +1,227 @@
+[
+  {
+    "test_name": "Create User - Missing Email Parameter",
+    "endpoint": "/api/v1/users",
+    "method": "POST",
+    "expected_status": 201,
+    "actual_status": 400,
+    "error_message": "Bad Request: Missing required field 'email' in request payload.",
+    "test_file": "tests/test_users.py"
+  },
+  {
+    "test_name": "Get User Profile - Expired Bearer Token",
+    "endpoint": "/api/v1/users/101",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 401,
+    "error_message": "Unauthorized: Access token expired at 2026-11-03T10:00:00Z. Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.expiredSecretKey123",
+    "test_file": "tests/test_auth.py"
+  },
+  {
+    "test_name": "Delete Tenant Resource - Missing Admin Role",
+    "endpoint": "/api/v1/tenants/42/settings",
+    "method": "DELETE",
+    "expected_status": 200,
+    "actual_status": 403,
+    "error_message": "Forbidden: Caller does not possess 'tenant:admin' permission scope.",
+    "test_file": "tests/test_tenants.py"
+  },
+  {
+    "test_name": "Fetch Product by Nonexistent ID",
+    "endpoint": "/api/v1/products/99999",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 404,
+    "error_message": "Not Found: Product with ID 99999 does not exist in catalog database.",
+    "test_file": "tests/test_products.py"
+  },
+  {
+    "test_name": "Register Organization - Duplicate Domain",
+    "endpoint": "/api/v1/organizations",
+    "method": "POST",
+    "expected_status": 201,
+    "actual_status": 409,
+    "error_message": "Conflict: Organization with domain 'capgemini.com' is already registered.",
+    "test_file": "tests/test_orgs.py"
+  },
+  {
+    "test_name": "Update Profile - Invalid Date Format",
+    "endpoint": "/api/v1/profile",
+    "method": "PUT",
+    "expected_status": 200,
+    "actual_status": 422,
+    "error_message": "Unprocessable Entity: 'birth_date' must match ISO-8601 format YYYY-MM-DD.",
+    "test_file": "tests/test_profile.py"
+  },
+  {
+    "test_name": "Get Order Invoices - Null Reference Exception",
+    "endpoint": "/api/v1/orders/808/invoices",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: Null reference in UserService.get_billing_address() line 142.",
+    "test_file": "tests/test_orders.py"
+  },
+  {
+    "test_name": "Process Payment - Upstream Gateway Bad Response",
+    "endpoint": "/api/v1/payments/charge",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 502,
+    "error_message": "Bad Gateway: Upstream payment provider Stripe returned invalid 502 response.",
+    "test_file": "tests/test_payments.py"
+  },
+  {
+    "test_name": "Sync Catalog - Database Read Replica Offline",
+    "endpoint": "/api/v1/catalog/sync",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 503,
+    "error_message": "Service Unavailable: Read replica pool exhausted at postgres://app_user:secretPass123@db-replica.internal:5432/store.",
+    "test_file": "tests/test_catalog.py"
+  },
+  {
+    "test_name": "Query Audit Logs - Invalid Page Size",
+    "endpoint": "/api/v1/audit-logs",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 400,
+    "error_message": "Bad Request: Query parameter 'page_size' must be between 1 and 100, received 500.",
+    "test_file": "tests/test_audit.py"
+  },
+  {
+    "test_name": "Refresh Session Token - Blacklisted Refresh Token",
+    "endpoint": "/api/v1/auth/refresh",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 401,
+    "error_message": "Unauthorized: Provided refresh token has been revoked or blacklisted.",
+    "test_file": "tests/test_auth.py"
+  },
+  {
+    "test_name": "Export Audit Report - Restricted Department",
+    "endpoint": "/api/v1/reports/finance",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 403,
+    "error_message": "Forbidden: User belongs to department 'Marketing', but endpoint requires 'Finance'.",
+    "test_file": "tests/test_reports.py"
+  },
+  {
+    "test_name": "Retrieve User Avatar - Image Missing",
+    "endpoint": "/api/v1/users/101/avatar",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 404,
+    "error_message": "Not Found: S3 asset 'avatars/101.png' was not found in bucket.",
+    "test_file": "tests/test_users.py"
+  },
+  {
+    "test_name": "Update Inventory - Optimistic Locking Version Mismatch",
+    "endpoint": "/api/v1/inventory/sku-892",
+    "method": "PUT",
+    "expected_status": 200,
+    "actual_status": 409,
+    "error_message": "Conflict: Resource version collision. Expected version 4, but current version is 5.",
+    "test_file": "tests/test_inventory.py"
+  },
+  {
+    "test_name": "Submit Feedback - Rating Value Exceeds Bound",
+    "endpoint": "/api/v1/feedback",
+    "method": "POST",
+    "expected_status": 201,
+    "actual_status": 422,
+    "error_message": "Unprocessable Entity: Field 'rating' value 10 exceeds maximum allowed 5.",
+    "test_file": "tests/test_feedback.py"
+  },
+  {
+    "test_name": "Calculate Shipping - Null Destination Coordinates",
+    "endpoint": "/api/v1/shipping/calculate",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: Null reference in GeoRoutingEngine.calculate_distance() line 88.",
+    "test_file": "tests/test_shipping.py"
+  },
+  {
+    "test_name": "Send SMS Notification - Gateway Timeout",
+    "endpoint": "/api/v1/notifications/sms",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 502,
+    "error_message": "Bad Gateway: Upstream Twilio API gateway connection timed out after 10000ms.",
+    "test_file": "tests/test_notifications.py"
+  },
+  {
+    "test_name": "Generate PDF Statement - Queue Worker Overloaded",
+    "endpoint": "/api/v1/statements/pdf",
+    "method": "POST",
+    "expected_status": 202,
+    "actual_status": 503,
+    "error_message": "Service Unavailable: Circuit breaker open. Worker pool queue depth exceeded 1000 items.",
+    "test_file": "tests/test_statements.py"
+  },
+  {
+    "test_name": "Filter Transactions - Malformed Currency Code",
+    "endpoint": "/api/v1/transactions",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 400,
+    "error_message": "Bad Request: Query parameter 'currency' value 'USDD' is not a valid 3-letter ISO code.",
+    "test_file": "tests/test_transactions.py"
+  },
+  {
+    "test_name": "Validate Webhook - Tampered HMAC Signature",
+    "endpoint": "/api/v1/webhooks/github",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 401,
+    "error_message": "Unauthorized: X-Hub-Signature-256 header does not match computed secret HMAC hash.",
+    "test_file": "tests/test_webhooks.py"
+  },
+  {
+    "test_name": "Process Bulk Batch - Memory Leak in Streaming Worker",
+    "endpoint": "/api/v1/batches/stream-export",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: Python process exceeded memory budget (1.8 GB). Worker killed by supervisor.",
+    "test_file": "tests/test_batches.py"
+  },
+  {
+    "test_name": "Transfer Funds - Database Lock Deadlock",
+    "endpoint": "/api/v1/accounts/transfer",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: PostgreSQL transaction deadlock detected while acquiring row locks on account 104.",
+    "test_file": "tests/test_accounts.py"
+  },
+  {
+    "test_name": "Claim Promo Coupon - Concurrent Redemptions Limit",
+    "endpoint": "/api/v1/coupons/SPRING2026/claim",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 409,
+    "error_message": "Conflict: Maximum coupon redemption cap reached concurrently during checkout.",
+    "test_file": "tests/test_coupons.py"
+  },
+  {
+    "test_name": "Fetch Analytics Summary - Legacy Monolith Crash",
+    "endpoint": "/api/v1/legacy/analytics",
+    "method": "GET",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: Legacy backend core dump without diagnostic symbols. Exit code 139.",
+    "test_file": "tests/test_legacy.py"
+  },
+  {
+    "test_name": "Execute Custom RPC - Unknown Unhandled Service Exception",
+    "endpoint": "/api/v1/rpc/dispatch",
+    "method": "POST",
+    "expected_status": 200,
+    "actual_status": 500,
+    "error_message": "Internal Server Error: Unknown unhandled exception in core dispatch pipeline. Stack trace unavailable.",
+    "test_file": "tests/test_rpc.py"
+  }
+]

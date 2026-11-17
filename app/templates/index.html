@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LoopLens — Loop Engineering API Failure Analyzer</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container-fluid px-lg-4">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <span class="logo">L</span>
+        <div>
+          <span class="brand-title">LoopLens</span>
+          <span class="brand-sub">OpsZero Autonomous Loop Engineering Hub</span>
+        </div>
+      </a>
+
+      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#topNavContent" aria-controls="topNavContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="topNavContent">
+        <div class="d-flex align-items-center justify-content-lg-end gap-2 flex-wrap ms-lg-auto py-3 py-lg-0">
+        <!-- Live API Prober Quick Button -->
+        <button class="btn btn-outline-success btn-sm fw-bold" onclick="showLiveProberModal()" title="Probe Live API Endpoints and Ingest Failures in Real Time">
+          <span class="pulse-dot d-inline-block me-1"></span> Live API Prober
+        </button>
+
+        <!-- AI Engine Indicator (Item 17) -->
+        <div class="engine-badge" id="engineBadge">
+          <i class="bi bi-cpu-fill text-primary"></i>
+          <span>AI Mode: <strong id="engineModeText">{{ 'Azure OpenAI' if ai_mode == 'azure' else 'Deterministic Mock Engine' }}</strong></span>
+          <span class="badge bg-secondary-subtle text-secondary border">Deployment: {{ model_name }}</span>
+        </div>
+
+        <span class="badge soft">Prompt v{{ prompt_version }} • Validator v{{ validator_version }}</span>
+        <button class="btn btn-outline-secondary btn-sm" onclick="showAuditModal()" title="View System Audit Trail">
+          <i class="bi bi-clock-history"></i> Audit Trail
+        </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid px-lg-4 py-4">
+    <!-- Hero Section -->
+    <section class="hero p-4 p-lg-5 mb-4">
+      <div class="row align-items-center">
+        <div class="col-lg-8">
+          <div class="eyebrow"><i class="bi bi-arrow-repeat"></i> OPSZERO AUTONOMOUS LOOP ENGINEERING PLATFORM</div>
+          <h1>Turn failed API tests into <span class="gradient-text">verified remediation.</span></h1>
+          <p class="hero-desc">
+            Autonomous Evaluator-Optimizer loop: probes live microservices, analyzes API failures, evaluates evidence quality and safety, retries with targeted validator feedback, generates unified Git patches, and facilitates auditable developer sign-off.
+          </p>
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newModal">
+              <i class="bi bi-plus-circle me-1"></i> New Analysis
+            </button>
+            <button class="btn btn-success btn-lg" onclick="showLiveProberModal()">
+              <i class="bi bi-broadcast me-1"></i> Live API Prober
+            </button>
+            <button class="btn btn-dark btn-lg" onclick="promptRunAllPending()">
+              <i class="bi bi-play-circle me-1"></i> Run All Pending
+            </button>
+            <button class="btn btn-outline-primary btn-lg" onclick="showTestSuiteModal()">
+              <i class="bi bi-terminal-check me-1"></i> Run Approved Pytest Suite
+            </button>
+            <button id="refreshBtn" class="btn btn-light btn-lg border" onclick="refreshDashboard()">
+              <i id="refreshIcon" class="bi bi-arrow-clockwise me-1"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div class="col-lg-4 mt-4 mt-lg-0">
+          <div class="workflow-card">
+            <div class="workflow-header">
+              <i class="bi bi-shield-check text-success"></i> 5-Stage Closed Loop
+            </div>
+            <div class="flow-step">
+              <span class="step-num">1</span>
+              <div>
+                <strong>API Failure Ingested</strong>
+                <small>Mask secrets, extract status & context</small>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="step-num">2</span>
+              <div>
+                <strong>Analyzer Cycle</strong>
+                <small>Root cause, evidence & actions</small>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="step-num">3</span>
+              <div>
+                <strong>Weighted Evaluator (100 pts)</strong>
+                <small>Fields, evidence, actions, safety, technical</small>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="step-num">4</span>
+              <div>
+                <strong>Feedback Retry Loop</strong>
+                <small>Iterative improvement up to 5 attempts</small>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="step-num">5</span>
+              <div>
+                <strong>Developer Sign-off</strong>
+                <small>Approve or Reject with mandatory reason</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OpsZero Live Demo Presenter Showcase Bar -->
+    <section class="opszero-showcase-bar mb-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-dark px-2 py-1"><i class="bi bi-play-circle-fill text-warning me-1"></i> PRESENTER DEMO TOUR</span>
+          <span class="small text-secondary fw-semibold">1-Click Showcase Scenarios:</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-sm btn-outline-primary" onclick="launchDemoShowcase(1)" title="Showcase 1: 401 Auth Token Expiration (Passes in 2 Attempts with 97% Validation)">
+            <i class="bi bi-shield-lock text-primary me-1"></i> Demo 1: 401 Auth (2 Attempts)
+          </button>
+          <button class="btn btn-sm btn-outline-primary" onclick="launchDemoShowcase(2)" title="Showcase 2: 500 Backend Null Reference (Passes in 4 Attempts with 97% Validation)">
+            <i class="bi bi-cpu text-info me-1"></i> Demo 2: 500 Null Pointer (4 Attempts)
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="launchDemoShowcase(3)" title="Showcase 3: 500 Unresolvable Crash (Stops at 5 Attempts Safety Limit)">
+            <i class="bi bi-slash-circle text-danger me-1"></i> Demo 3: 500 Monolith Crash (Stop Limit)
+          </button>
+          <button class="btn btn-sm btn-outline-warning" onclick="launchDemoShowcase(4)" title="Showcase 4: Needs Diagnostic Context (Recovers via Log Enrichment)">
+            <i class="bi bi-pencil-square text-warning me-1"></i> Demo 4: Needs Context
+          </button>
+          <button class="btn btn-sm btn-success fw-semibold" onclick="launchDemoShowcase(5)" title="Showcase 5: Live API Prober & Real-time Auto-Healing">
+            <span class="pulse-dot d-inline-block me-1"></span> Demo 5: Live Prober & Self-Healing
+          </button>
+          <button class="btn btn-sm btn-light border text-secondary" onclick="clearFilters()" title="Reset to view all failure records">
+            <i class="bi bi-x-circle me-1"></i> Reset View
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 Main KPI Cards (Items 5 & 15) -->
+    <div class="row g-3 mb-4" id="statsRow" aria-label="Workspace metrics">
+      <!-- Generated dynamically in JS -->
+    </div>
+
+    <!-- Visual Reports Section (Item 16) -->
+    <section class="card analytics-panel mb-4" aria-labelledby="analyticsTitle">
+      <div class="card-header analytics-heading">
+        <div>
+          <div class="section-kicker">OPERATIONS OVERVIEW</div>
+          <h2 class="h5 mb-1" id="analyticsTitle"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Analysis intelligence</h2>
+          <small class="text-secondary">Validation outcomes, failure categories, and recurring root causes</small>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="toggleAnalyticsView()" aria-controls="analyticsBody" aria-expanded="true">
+          <span id="analyticsToggleText">Collapse charts</span> <i id="analyticsToggleIcon" class="bi bi-chevron-up"></i>
+        </button>
+      </div>
+
+      <div id="analyticsBody" class="card-body pt-0">
+        <div class="row g-3">
+        <!-- Chart 1: Attempt Distribution (Item 16.A) -->
+        <div class="col-xl-4 col-md-6">
+          <article class="card insight-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                  <span class="insight-icon insight-icon-teal"><i class="bi bi-arrow-repeat"></i></span>
+                  <h3 class="h6 mt-3 mb-1">Validation attempts</h3>
+                </div>
+                <span class="badge rounded-pill bg-success-subtle text-success-emphasis border">LOOP EFFICIENCY</span>
+              </div>
+              <small class="text-secondary d-block mb-2">How many cycles each result needed to pass validation</small>
+              <div class="chart-frame chart-doughnut">
+                <canvas id="attemptDistChart" role="img" aria-label="Doughnut chart of validation attempt distribution"></canvas>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Chart 2: Error Categories (Item 16.B) -->
+        <div class="col-xl-4 col-md-6">
+          <article class="card insight-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                  <span class="insight-icon insight-icon-blue"><i class="bi bi-diagram-3"></i></span>
+                  <h3 class="h6 mt-3 mb-1">Failure categories</h3>
+                </div>
+                <span class="badge rounded-pill bg-info-subtle text-info-emphasis border">CLASSIFICATION</span>
+              </div>
+              <small class="text-secondary d-block mb-2">Most frequent API failure classifications</small>
+              <div class="chart-frame chart-bars">
+                <canvas id="categoryDistChart" role="img" aria-label="Horizontal bar chart of failure categories"></canvas>
+                <div id="categoryDistEmpty" class="chart-empty d-none">Category data will appear after analyses are recorded.</div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Chart 3: Common Root Causes & Approval (Item 16.C & 16.D) -->
+        <div class="col-xl-4 col-md-12">
+          <article class="card insight-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                  <span class="insight-icon insight-icon-coral"><i class="bi bi-bug"></i></span>
+                  <h3 class="h6 mt-3 mb-1">Recurring root causes</h3>
+                </div>
+                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border">PATTERNS</span>
+              </div>
+              <small class="text-secondary d-block mb-2">Repeated causes identified by the analysis loop</small>
+              <div class="chart-frame chart-bars">
+                <canvas id="rootCausesChart" role="img" aria-label="Horizontal bar chart of recurring root causes"></canvas>
+                <div id="rootCausesEmpty" class="chart-empty d-none">Root cause trends will appear after analyses complete.</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Failure Workspace Panel -->
+    <section class="panel">
+      <!-- Search, Multi-Filter & Demo Highlights Toolbar (Item 25) -->
+      <div class="workspace-header pb-3 mb-3 border-bottom">
+        <div class="row g-2 align-items-center">
+          <div class="col-lg-3 col-md-6">
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="bi bi-search text-secondary"></i></span>
+              <input id="search" class="form-control" placeholder="Search tests, endpoints, root causes, errors...">
+            </div>
+          </div>
+
+          <div class="col-lg-2 col-md-3 col-6">
+            <select id="filterStatus" class="form-select">
+              <option value="">All Statuses</option>
+              <option value="PENDING">PENDING</option>
+              <option value="RUNNING">RUNNING</option>
+              <option value="AWAITING_APPROVAL">AWAITING_APPROVAL</option>
+              <option value="NEEDS_MORE_CONTEXT">NEEDS_MORE_CONTEXT</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="REJECTED">REJECTED</option>
+              <option value="FAILED">FAILED</option>
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-md-3 col-6">
+            <select id="filterMethod" class="form-select">
+              <option value="">All Methods</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-md-4 col-6">
+            <select id="filterAttempts" class="form-select">
+              <option value="">All Attempts</option>
+              <option value="1">1 Attempt</option>
+              <option value="2">2 Attempts</option>
+              <option value="3">3 Attempts</option>
+              <option value="4">4 Attempts</option>
+              <option value="5">5 Attempts</option>
+            </select>
+          </div>
+
+          <div class="col-lg-3 col-md-8 col-12 d-flex gap-2 justify-content-lg-end">
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()" title="Reset all search and filter values">
+              <i class="bi bi-x-circle"></i> Clear Filters
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="filterShowcaseRecords()" title="Quick filter to view the 3 core presentation records">
+              <i class="bi bi-stars text-warning"></i> Demo Highlights
+            </button>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2">
+          <div class="small text-secondary">
+            Showing <strong id="recordCount">0</strong> records
+            <span id="activeFilterPill" class="ms-2"></span>
+          </div>
+          <div class="small text-secondary" id="lastUpdatedNotice">
+            Last updated: Just now
+          </div>
+        </div>
+      </div>
+
+      <!-- Failure Cards Grid -->
+      <div id="cards" class="row g-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: Create New Failure Analysis (Item 23 & 24) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="newModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <form id="newForm" class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-square text-primary me-2"></i>Create API Failure Analysis</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info py-2 small">
+            <i class="bi bi-shield-lock me-1"></i> <strong>Automated Safety Scanner Active:</strong> Bearer tokens, passwords, API keys, and connection strings will be masked before processing.
+          </div>
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label small fw-bold">Test Name *</label>
+              <input name="test_name" class="form-control" placeholder="e.g. Get User Profile - Token Verification" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small fw-bold">Test File (.py, .ts, .js) *</label>
+              <input name="test_file" class="form-control" value="tests/test_auth.py" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">HTTP Method *</label>
+              <select name="method" class="form-select">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+              </select>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small fw-bold">API Endpoint (must start with /) *</label>
+              <input name="endpoint" class="form-control" value="/api/v1/users/101" required>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-bold">Expected Status</label>
+              <input name="expected_status" type="number" value="200" min="100" max="599" class="form-control" required>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-bold">Actual Status</label>
+              <input name="actual_status" type="number" value="401" min="100" max="599" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Error Message / Response Payload *</label>
+              <textarea name="error_message" class="form-control font-monospace small" rows="3" required placeholder="Paste API response or error string here... e.g. Unauthorized: token expired. Authorization: Bearer abc123xyz"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <div class="d-flex gap-2">
+            <button type="submit" name="submit_action" value="pending" class="btn btn-outline-secondary">
+              <i class="bi bi-save me-1"></i> Save as Pending
+            </button>
+            <button type="submit" name="submit_action" value="run" class="btn btn-primary">
+              <i class="bi bi-play-circle me-1"></i> Save and Start Analysis
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: Detail & Loop History View (Items 1, 8, 9, 10, 11, 12, 13, 14) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 id="detailTitle" class="modal-title mb-1"></h5>
+            <div id="detailSubtitle" class="small text-secondary"></div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <!-- Modal Navigation Tabs -->
+          <ul class="nav nav-tabs px-3 pt-2 bg-light border-bottom" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabOverview">
+                <i class="bi bi-card-checklist me-1"></i> Overview & Evaluation
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHistory">
+                <i class="bi bi-arrow-repeat me-1"></i> Complete Loop History (<span id="attemptCountBadge">0</span>)
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabApproval">
+                <i class="bi bi-person-check me-1"></i> Developer Review & Sign-off
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content p-4">
+            <!-- TAB 1: Overview & Evaluator Breakdown -->
+            <div class="tab-pane fade show active" id="tabOverview">
+              <div id="overviewTabBody"></div>
+            </div>
+
+            <!-- TAB 2: Complete Loop History (Items 1, 9, 12) -->
+            <div class="tab-pane fade" id="tabHistory">
+              <div id="historyTabBody"></div>
+            </div>
+
+            <!-- TAB 3: Developer Review & Approval (Item 13) -->
+            <div class="tab-pane fade" id="tabApproval">
+              <div id="approvalTabBody"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <div class="small text-secondary" id="modalMetadataFooter"></div>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: Provide More Context (Item 11) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="contextModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <form id="contextForm" class="modal-content">
+        <input type="hidden" id="contextAnalysisId" name="analysis_id">
+        <div class="modal-header">
+          <h5 class="modal-title text-warning">
+            <i class="bi bi-info-circle-fill me-2"></i>Provide Additional Diagnostic Context
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary small mb-3">
+            The Analyzer halted with <strong>INSUFFICIENT_CONTEXT</strong>. Supplying server logs, stack traces, and payload data avoids AI assumptions and allows the Evaluator-Optimizer to produce verified fixes.
+          </p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Environment</label>
+              <select name="environment" class="form-select">
+                <option value="development">Development</option>
+                <option value="staging">Staging</option>
+                <option value="production">Production</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Correlation ID / Request Trace ID</label>
+              <input name="correlation_id" class="form-control" placeholder="e.g. TRACE-2026-X991">
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Server Stack Trace</label>
+              <textarea name="stack_trace" class="form-control font-monospace small" rows="3" placeholder="Paste python/backend exception stack trace..."></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Request Body</label>
+              <textarea name="request_body" class="form-control font-monospace small" rows="2" placeholder='e.g. {"user_id": 101, "tier": "gold"}'></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Response Body</label>
+              <textarea name="response_body" class="form-control font-monospace small" rows="2" placeholder='e.g. {"status": 500, "detail": "NullPointerException"}'></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Application / Service Logs</label>
+              <textarea name="service_logs" class="form-control font-monospace small" rows="2" placeholder="Relevant lines from service console..."></textarea>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small fw-bold">Related Source File</label>
+              <input name="related_file" class="form-control" placeholder="e.g. app/services/user_service.py">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Additional Notes</label>
+              <input name="additional_notes" class="form-control" placeholder="Optional developer hints">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-play-circle me-1"></i> Save and Re-run Analysis
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: Batch Execution Progress (Item 7 & 22) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="batchModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="batchModalTitle">
+            <i class="bi bi-cpu text-primary me-2"></i>Batch Analysis in Progress
+          </h5>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span id="batchProgressLabel">Processing...</span>
+              <span id="batchPercentLabel">0%</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div id="batchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="batch-stats-grid p-3 rounded bg-light border mb-3">
+            <div class="row g-2 text-center">
+              <div class="col-4">
+                <small class="text-secondary d-block">Processed</small>
+                <strong id="batchProcessedCount" class="h6 mb-0">0 of 0</strong>
+              </div>
+              <div class="col-4">
+                <small class="text-success d-block">Passed</small>
+                <strong id="batchPassedCount" class="h6 text-success mb-0">0</strong>
+              </div>
+              <div class="col-4">
+                <small class="text-danger d-block">Failed</small>
+                <strong id="batchFailedCount" class="h6 text-danger mb-0">0</strong>
+              </div>
+              <div class="col-6 mt-2">
+                <small class="text-secondary d-block">Concurrency</small>
+                <span class="badge bg-secondary-subtle text-secondary border">Max 3 concurrent</span>
+              </div>
+              <div class="col-6 mt-2">
+                <small class="text-secondary d-block">Remaining</small>
+                <strong id="batchRemainingCount" class="h6 mb-0">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div id="batchStatusMessage" class="small text-secondary text-center">
+            Executing Evaluator-Optimizer loop across pending records...
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button id="stopBatchBtn" class="btn btn-outline-danger" onclick="stopActiveBatch()">
+            <i class="bi bi-stop-circle me-1"></i> Stop Batch
+          </button>
+          <button id="closeBatchBtn" class="btn btn-primary" data-bs-dismiss="modal" disabled>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 5: Run Approved Test Suite (Item 20) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="testSuiteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-terminal text-success me-2"></i>Run Approved Pytest Test Suite
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-secondary mb-3">
+            <strong>Safety Constraint:</strong> Only pre-approved test suites can be executed. Arbitrary shell commands are strictly disallowed. Real test output will be captured, and discovered test failures will be ingested into LoopLens.
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Select Approved Suite</label>
+            <select id="suiteSelect" class="form-select">
+              <option value="tests/test_auth_suite.py">tests/test_auth_suite.py — Authentication & Token Security Suite</option>
+              <option value="tests/test_regression_suite.py">tests/test_regression_suite.py — API Integration & Regression Suite</option>
+              <option value="tests/test_api.py">tests/test_api.py — Core API Framework Test Suite</option>
+            </select>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-bold">Command Execution:</span>
+            <span id="suiteStatusBadge" class="badge bg-secondary-subtle text-secondary border">Ready to run</span>
+          </div>
+          <pre id="suiteOutputConsole" class="terminal-console p-3 rounded font-monospace small bg-dark text-light mb-3" style="max-height: 240px; overflow-y: auto;">Click 'Execute Pytest Suite' to begin execution...</pre>
+
+          <div id="suiteSummaryBox" class="alert alert-light border d-none">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong id="suiteSummaryTitle">Suite Completed</strong>
+                <div class="small text-secondary" id="suiteSummaryCounts">Passed: 0, Failed: 0</div>
+              </div>
+              <div id="suiteSummaryAction"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+          <button id="runSuiteBtn" class="btn btn-success" onclick="executeSelectedSuite()">
+            <i class="bi bi-play-fill me-1"></i> Execute Pytest Suite
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 6: System Audit Trail (Item 27) -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="auditModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-journal-text text-primary me-2"></i>System & Review Audit Trail</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0 font-monospace small">
+              <thead class="table-light">
+                <tr>
+                  <th>Time</th>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Record / Batch</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 7: OpsZero Live API Health Prober & Synthetic Telemetry (Live Data)   -->
+  <!-- ========================================================================= -->
+  <div class="modal fade" id="liveProberModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title d-flex align-items-center gap-2">
+              <span class="pulse-dot"></span>
+              <span>OpsZero Live API Health Prober & Synthetic Telemetry</span>
+            </h5>
+            <small class="text-secondary">Probe real live APIs, capture real-time failures, and autonomously execute the Evaluator-Optimizer loop.</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Preset quick-pick bar -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary">Quick-Pick Live Microservice Presets:</label>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setProberPreset('/api/live-demo/auth-gateway', 'GET', 200, 'Live Auth Gateway (401 Expired JWT)')">
+                <i class="bi bi-shield-x text-warning me-1"></i> Auth Gateway (401)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setProberPreset('/api/live-demo/order-service', 'POST', 200, 'Live Order Processor (500 NullPointer)')">
+                <i class="bi bi-exclamation-triangle text-danger me-1"></i> Order Service (500)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setProberPreset('/api/live-demo/inventory-service', 'GET', 200, 'Live Inventory Service (409 Conflict)')">
+                <i class="bi bi-intersect text-info me-1"></i> Inventory Catalog (409)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setProberPreset('/api/live-demo/payment-gateway', 'GET', 200, 'Live Payment Gateway (504 Timeout)')">
+                <i class="bi bi-hourglass text-danger me-1"></i> Payments Gateway (504)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-success" onclick="setProberPreset('/api/live-demo/health', 'GET', 200, 'OpsZero Core Health (200 OK)')">
+                <i class="bi bi-heart-pulse text-success me-1"></i> Core Health (200 OK)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="setProberPreset('https://httpbin.org/status/401', 'GET', 200, 'External Public API (httpbin 401)')">
+                <i class="bi bi-globe text-primary me-1"></i> Public HttpBin (401)
+              </button>
+            </div>
+          </div>
+
+          <div class="card p-3 bg-light border mb-4">
+            <div class="row g-3">
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">Method</label>
+                <select id="probeMethod" class="form-select">
+                  <option>GET</option>
+                  <option>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
+                </select>
+              </div>
+              <div class="col-md-7">
+                <label class="form-label small fw-bold">Target Live URL or Microservice Route</label>
+                <input id="probeUrl" class="form-control font-monospace small" value="/api/live-demo/auth-gateway" placeholder="e.g. /api/live-demo/auth-gateway or https://httpbin.org/status/401">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Expected Status</label>
+                <input id="probeExpectedStatus" type="number" class="form-control" value="200" min="100" max="599">
+              </div>
+              <div class="col-12 text-end">
+                <button id="sendProbeBtn" class="btn btn-primary" onclick="executeLiveProbe()">
+                  <i class="bi bi-send-fill me-1"></i> Send Live Probe
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Probe Response Display -->
+          <div id="probeResultSection" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold mb-0"><i class="bi bi-activity text-primary me-1"></i> Live Telemetry & Response Diagnostics</h6>
+              <div class="d-flex gap-2 align-items-center">
+                <span id="probeLatencyBadge" class="badge bg-dark">Latency: — ms</span>
+                <span id="probeStatusBadge" class="badge bg-secondary">HTTP —</span>
+              </div>
+            </div>
+
+            <pre id="probeConsole" class="terminal-console p-3 rounded font-monospace small bg-dark text-light mb-3" style="max-height: 220px; overflow-y: auto;"></pre>
+
+            <div id="probeIngestBox" class="alert alert-warning d-flex justify-content-between align-items-center">
+              <div>
+                <strong><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Live Failure Intercepted!</strong>
+                <div class="small text-secondary" id="probeIngestDesc">The target endpoint returned an unexpected HTTP status code.</div>
+              </div>
+              <button class="btn btn-warning fw-bold" onclick="ingestLiveProbeFailure()">
+                <i class="bi bi-lightning-charge-fill me-1"></i> Ingest into LoopLens & Auto-Heal
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Box -->
+  <div id="toast" class="toastbox" role="status" aria-live="polite"></div>
+
+  <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/static/vendor/chartjs/chart.umd.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
